@@ -1,0 +1,73 @@
+{
+  "Comment": "Bellflower State Machine",
+  "StartAt": "Processing Lambda",
+  "States": {
+    "Processing Lambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${ProcessingLambda}:$LATEST"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2,
+          "Comment": "Automatic Retry 3 Times"
+        }
+      ],
+      "InputPath": "$",
+      "Next": "Wait For Response",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "SNS Publish (Failure)"
+        }
+      ]
+    },
+    "SNS Publish (Failure)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "Message.$": "$",
+        "TopicArn": "${ReportResultSNSTopicArn}"
+      },
+      "Next": "Fail"
+    },
+    "Fail": {
+      "Type": "Fail"
+    },
+    "Wait For Response": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "QueueUrl": "${WaitForResponseQueueURL}",
+        "MessageBody": {
+          "Input.$": "$",
+          "TaskToken.$": "$$.Task.Token"
+        }
+      },
+      "ResultPath": null,
+      "Next": "SNS Publish (Success)"
+    },
+    "SNS Publish (Success)": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "Message.$": "$",
+        "TopicArn": "${ReportResultSNSTopicArn}"
+      },
+      "Next": "Success"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}

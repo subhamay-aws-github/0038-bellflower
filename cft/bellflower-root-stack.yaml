@@ -1,0 +1,622 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+   Project Bellflower - Root Stack Template to create a State Machine and associated services and IAM role to orchestrate lambda functions.
+
+Metadata:
+  TemplateName: Bellflower-root-stack.yaml
+  TemplateType: State Machine, Lambda Function, SQS Queue and SNS Topic
+  Version: 1.0.0
+  Owner: Subhamay Bhattacharyya
+  ProjectName: Project Bellflower
+  Modification History:
+    - 1.0.0  - December 10, 2022   -- Initial Version 
+  Resources: 
+  - A State Machine
+  - A SQS Queue
+  - Two Lambda functions
+  - A SNS topic
+  - Related IAM Roles
+  StepsToTest: |
+    Manualy verify the Stack.
+  StepsToCleanup: |
+    Stack delete command
+
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    ########################################### Project Name and Environment #######################
+    - Label: 
+        default: "Project And Environment:"
+      Parameters: 
+      - ProjectName
+      - Environment
+    ########################################## KMS Key ############################################
+    - Label: 
+        default: "KMS Configuration:"
+      Parameters: 
+      - KmsMasterKeyAlias
+      - KmsMasterKeyId
+    ########################################### Lambda Function ####################################
+    - Label:
+        default: "Lambda Function Configuration:"
+      Parameters: 
+      - LambdaExecutionRoleName
+      - LambdaExecutionPolicyName
+      - LambdaHandlerPath
+      - LambdaFunctionTimeoutSecs
+      - LambdaRuntime
+      - LambdaFunctionMemory
+      - LambdaFunctionCodeBucket
+      - ProcessingLambdaFunctionCodeKey
+      - ProcessingLambdaFunctionName
+      - ProcessingLambdaFunctionDescription
+      - IntegrationLambdaFunctionCodeKey
+      - IntegrationLambdaFunctionName
+      - IntegrationLambdaFunctionDescription
+    ########################################### SQS Queue ##########################################
+    - Label: 
+        default: "SQS Configuration:"
+      Parameters: 
+      - SQSQueueBaseName
+      - DelaySeconds
+      - MaximumMessageSize
+      - MessageRetentionPeriod
+      - ReceiveMessageWaitTimeSeconds
+      - VisibilityTimeout
+    ############################################ SNS Topic and Subscription#########################
+    - Label: 
+        default: "SNS Configuration:"
+      Parameters: 
+      - SNSTopicBaseName
+      - SNSTopicDisplayName
+      - SNSSubscriptionEmail
+    ############################################ S3 Bucket ##########################################
+    - Label:
+        default: "S3 Configuration:"
+      Parameters:
+      - S3IntegrationBucketName
+      - S3DataBucketFolder
+      - S3BucketBlockPublicAcls
+      - S3BucketBlockPublicPolicy
+      - S3BucketIgnorePublicAcls
+      - S3BucketRestrictPublicBuckets
+    - Label:
+        default: "Step Function Configuration:"
+      Parameters:
+      - StepFunctionExecutionRoleName
+      - StepFunctionExecutionPolicyName
+      - StepFunctionName
+    - Label: 
+        default: "Cross Stack for Custom Resource:"
+      Parameters: 
+      - S3CustomResourceStackName
+    ParameterLabels:
+      ########################################### Project Name and Environment #######################
+      ProjectName:
+        default: "The Project Name."
+      Environment:
+        default: "Environment Name."
+      ########################################## KMS Key #############################################
+      KmsMasterKeyAlias:
+        default: "KMS Key Alias."
+      KmsMasterKeyId:
+        default: "KMS Key Id."
+      ########################################### Lambda Function ####################################
+      LambdaExecutionRoleName: 
+        default: "Lammba Function Execution Role Name."
+      LambdaHandlerPath: 
+        default: "Lambda Handler Path."
+      LambdaFunctionTimeoutSecs:
+        default: "Lambda Function Timeout in Seconds."
+      LambdaRuntime: 
+        default: "Lambda Runtime."
+      LambdaFunctionMemory:
+        default: "Lambda Fuction Memory."
+      LambdaFunctionCodeBucket: 
+        default: "Lambda Function Code S3 Bucket."
+      ProcessingLambdaFunctionCodeKey: 
+        default: "Check Stock Price Lambda Function Code Zip File Key."
+      ProcessingLambdaFunctionName:
+        default: "Processing Lambda Function Name."
+      ProcessingLambdaFunctionDescription:
+        default: "Check Stock Price Lambda Function Description."
+      IntegrationLambdaFunctionCodeKey: 
+        default: "Check Stock Price Lambda Function Code Zip File Key."
+      IntegrationLambdaFunctionName:
+        default: "Integration Lambda Function Name."
+      IntegrationLambdaFunctionDescription:
+        default: "Check Stock Price Lambda Function Description."
+      ########################################### SQS Queue ##########################################
+      SQSQueueBaseName:
+        default: "SQS Queue Name."
+      DelaySeconds:
+        default: "SQS Queue Delay Seconds."
+      MaximumMessageSize:
+        default: "SQS Queue Maximum Message Size."
+      MessageRetentionPeriod:
+        default: "SQS Queue Message Retention Period."
+      ReceiveMessageWaitTimeSeconds:
+        default: "SQS Queue Receive Message Wait Seconds."
+      VisibilityTimeout:
+        default: "SQS Queue Visibility Timeout."
+      ############################################ SNS Topic and Subscription#########################
+      SNSTopicBaseName:
+        default: "Result Notification SQS Topic Name."
+      SNSTopicDisplayName:
+        default: "Result Notification SQS Topic Diaplay Name."
+      SNSSubscriptionEmail:
+        default: "Result Notification SQS Subscription Email."
+      ############################################ S3 Bucket ##########################################
+      S3IntegrationBucketName:
+        default: "S3 Bucket Base Name."
+      S3DataBucketFolder:
+        default: "The folder(s) to be created."
+      S3BucketBlockPublicAcls:
+        default: "Allow BlockPublicAcls"
+      S3BucketBlockPublicPolicy:
+        default: "Allow BlockPublicPolicy"
+      S3BucketIgnorePublicAcls:
+        default: "Allow IgnorePublicAcls"
+      S3BucketRestrictPublicBuckets:
+        default: "Allow restrictPublicBuckets"
+      ############################################ Step Function ######################################
+      StepFunctionExecutionRoleName:
+        default: "Step Function Role Name."
+      StepFunctionExecutionPolicyName:
+        default: "Step Function Policy Name."
+      S3CustomResourceStackName:
+        default: "Cross Stack Name for Custo Resource."
+Parameters:
+  ############################################ Project And Environment Name ############################
+  ProjectName:
+    Default: bellflower
+    Description: "The Project Name."
+    Type: String
+    MinLength: 5
+    MaxLength: 30
+    AllowedPattern: "[a-z]*"
+    ConstraintDescription: "The length should be between 5 and 30, must contain only lowercase alphabets."
+  Environment:
+    Default: devl
+    Description: "The Environment Name."
+    Type: String
+    AllowedValues: ["devl", "test", "prod"]
+    ConstraintDescription: "The Environment must be devl / test or prod"
+  ############################################ KMS ###############################################
+  KmsMasterKeyAlias:
+    Default: "SB-KMS"
+    Description: "The KMS Master Key Alias To Be Used For Server Side Encryption."
+    Type: String
+    MinLength: 5
+    MaxLength: 20
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: "The length of the KMS Key Alias should be beteen 5 and 20 and can only contain lowercase alphanumeric characters and dash."
+  KmsMasterKeyId:
+    Default: "e4c733c5-9fbe-4a90-bda1-6f0362bc9b89"
+    Description: "The KMS Key Id Used For Encryption."
+    Type: String
+    MinLength: 36
+    MaxLength: 36
+    AllowedPattern: "[a-z0-9-]*"
+    ConstraintDescription: "The length of the KMS Key Id should be 36 and must be lowercase alphabets, numbers and dash."
+  ########################################### SQS Queue ##########################################
+  SQSQueueBaseName:
+    Type: String
+    Description: "SQS Queue Name."
+    Default: bellflower-sqs-queue
+    MinLength: 10
+    MaxLength: 40
+    AllowedPattern: "[a-zA-Z0-9/-]*"
+    ConstraintDescription: The length should be between 10 and 40, must contain only alphanumeric character.
+  DelaySeconds:
+    Type: Number
+    Description: "Delay Seconds."
+    Default: 0
+    MinValue: 0
+    MaxValue: 900
+  MaximumMessageSize:
+    Type: Number
+    Description: "Maximum Message Size."
+    Default: 262144
+    MinValue: 1024
+    MaxValue: 262144
+  MessageRetentionPeriod:
+    Type: Number
+    Description: "Message Retention Period."
+    Default: 345600
+    MinValue: 60
+    MaxValue: 1209600
+  ReceiveMessageWaitTimeSeconds:
+    Type: Number
+    Description: "Received Message Wait Time Seconds."
+    Default: 0
+    MinValue: 0
+    MaxValue: 20
+  VisibilityTimeout:
+    Type: Number
+    Description: "Visibility Timeout."
+    Default: 300
+    MinValue: 1
+    MaxValue: 43200
+  ########################################### SNS Topic ##########################################
+  SNSTopicBaseName:
+    Default: "bellflower-sns-topic"
+    Description: "The Base Name Of The Sns Topic."
+    Type: String
+    MinLength: 10
+    MaxLength: 40
+    AllowedPattern: "[a-z][a-z0-9-]*"
+    ConstraintDescription: "The length should be between 10 and 40, must contain only lowercase letter, number, dash, dot and should start with a letter."
+  SNSTopicDisplayName:
+    Default: "SNS Topic name for sending result notification"
+    Description: "The Base Name of the SNS Topic."
+    Type: String
+    MinLength: 10
+    MaxLength: 100
+    AllowedPattern: "[a-zA-Z0-9-. _]*"
+    ConstraintDescription: "The length should be between 30 and 200, must alphanumeric character, space, dot and underscore."
+  SNSSubscriptionEmail:
+    Default: "subhamay.aws@gmail.com"
+    Description: "The Subscription Email For The SNS Topic."
+    Type: String
+    MinLength: 10
+    MaxLength: 100
+  ########################################### Lambda Function ####################################
+  LambdaExecutionRoleName:
+    Default: bellflower-lambda-function-execution-role
+    Description: Lambda Execution Role Name
+    Type: String
+    MinLength: 5
+    MaxLength: 50
+    AllowedPattern: "[a-zA-Z-]*"
+    ConstraintDescription: "The length should be between 5 and 50, , must contain only lowercase letters,numbers and hyphen (-)."
+  LambdaExecutionPolicyName:
+    Default: bellflower-lambda-function-execution-policy
+    Description: Lambda Execution Policy Name
+    Type: String
+    MinLength: 5
+    MaxLength: 50
+    AllowedPattern: "[a-zA-Z-]*"
+    ConstraintDescription: "The length should be between 5 and 50, , must contain only lowercase letters,numbers and hyphen (-)."
+  LambdaHandlerPath:
+    Default: index.lambda_handler
+    Description: Lambda Execution Path
+    Type: String
+    MinLength: 10
+    MaxLength: 50
+    AllowedPattern: "[a-zA-Z0-9_.]*"
+    ConstraintDescription: "Must be between 10 and 50 characters long and should be a valid handler path."
+  LambdaRuntime:
+    Default: python3.8
+    Description: "Lambda Runtime (Python 3.7, 3.8 or 3.9)"
+    Type: String
+    AllowedValues: [python3.7 ,python3.8, python3.9]
+    ConstraintDescription: "The Lambda runtime should be either Python 3.7, 3.8 or 3.9"
+  LambdaFunctionTimeoutSecs:
+    Default: 300
+    Description: Lambda function timeout period in seconds.
+    Type: Number
+    MinValue: 3
+    MaxValue: 900
+    ConstraintDescription: "The Lambda timeout period should be between 3 and 900 seconds."
+  LambdaFunctionMemory:
+    Default: 256
+    Description: "The Lambda Function Memory in MB."
+    Type: Number
+    MinValue: 128
+    MaxValue: 10240
+    ConstraintDescription: "The Lambda Memory should be between 128 and 10240."
+  LambdaFunctionCodeBucket:
+    Default: subhamay-project-repo-us-east-1
+    Description: "The Source Code S3 Bucket Base Name"
+    Type: String
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: "[a-z][a-z0-9-.]*"
+    ConstraintDescription: The length should be between 3 and 63, must contain only lowercase letter,numbers,dash, dot and should start with a letter.
+  ProcessingLambdaFunctionCodeKey:
+    Default: 0038-bellflower/code/processing_lambda.zip
+    Description: "The Zip File Name Containing The Lambda Code."
+    Type: String
+    MinLength: 10
+    MaxLength: 100
+    AllowedPattern: "[a-zA-Z0-9-/_.]*"
+    ConstraintDescription: "The length should be between 10 and 100, must contain only lowercase letter,numbers,dash, dot, underscore"
+  ProcessingLambdaFunctionName:
+    Default: bellflower-processing-lambda
+    Description: "Processing Lambda Function Base Name"
+    Type: String
+    MinLength: 15
+    MaxLength: 50
+    AllowedPattern: "[a-z-]*"
+    ConstraintDescription: The length should be between 15 and 50, must contain only lowercase letters,numbers and dash(-) and should start with a letter.
+  IntegrationLambdaFunctionCodeKey:
+    Default: 0038-bellflower/code/integration_lambda.zip
+    Description: "The source code zip file name for the generate buy sell recommendation lambda function"
+    Type: String
+    MinLength: 10
+    MaxLength: 100
+    AllowedPattern: "[a-zA-Z0-9-/_.]*"
+    ConstraintDescription: "The length should be between 10 and 100, must contain only lowercase letter,numbers,dash, dot, underscore"
+  IntegrationLambdaFunctionName:
+    Default: bellflower-integration-lambda
+    Description: Integration Lambda Function
+    Type: String
+    MinLength: 10
+    MaxLength: 50
+    AllowedPattern: "[a-z-]*"
+    ConstraintDescription: "Must be between 10 and 50 characters long and begin with a letter and can contain lowercase letter, number or hyphen (-)."
+  ProcessingLambdaFunctionDescription:
+    Default: The Lambda Function to generate buy sell recommendation.
+    Description: "The Generate Buy Sell Recommendation Lambda Function Description"
+    Type: String
+    MinLength: 30
+    MaxLength: 200
+    AllowedPattern: "^[A-Z][a-zA-Z0-9 .,]*$"
+    ConstraintDescription: The length should be between 30 and 300, must contain only lowercase letters,space( ) and dot(.) and should start with an uppercase letter.
+  IntegrationLambdaFunctionDescription:
+    Default: The Lambda Function to generate buy sell recommendation.
+    Description: "The Generate Buy Sell Recommendation Lambda Function Description"
+    Type: String
+    MinLength: 30
+    MaxLength: 200
+    AllowedPattern: "^[A-Z][a-zA-Z0-9 .,]*$"
+    ConstraintDescription: The length should be between 30 and 300, must contain only lowercase letters,space( ) and dot(.) and should start with an uppercase letter.
+  ############################################ S3 Bucket ##########################################
+  S3IntegrationBucketName:
+    Default: bellflower-integration-bucket
+    Description: "The Bucket Base Name Of The S3 Bucket Used For Integration. The Region And Environment Will Be Added As Suffix By The Template."
+    Type: String
+    MinLength: 3
+    MaxLength: 40
+    AllowedPattern: "[a-z][a-z0-9-.]*"
+    ConstraintDescription: "The length should be between 3 and 40, must contain only lowercase letter,numbers,dash, dot and should start with a letter."
+  S3DataBucketFolder:
+    Default: "inbound,outbound"
+    Description: "The Folders To Be Created (Comma Delimited). Use Do_not_create If You Do Not Want To Create Any Folder."
+    Type: String
+    ConstraintDescription: Should be a comma seperated folder names.
+  S3BucketBlockPublicAcls:
+    Default: true
+    Description: "Allow Block Public Acls"
+    Type: String
+    AllowedValues: [true, false]
+  S3BucketBlockPublicPolicy:
+    Default: true
+    Description: "Allow Block Public Policy"
+    Type: String
+    AllowedValues: [true, false]
+  S3BucketIgnorePublicAcls:
+    Default: true
+    Description: "Allow Ignore Public Acls"
+    Type: String
+    AllowedValues: [true, false]
+  S3BucketRestrictPublicBuckets:
+    Default: true
+    Description: "Allow Restrict Public Buckets"
+    Type: String
+    AllowedValues: [true, false]
+  S3CustomResourceStackName:
+    Default: "bellflower-s3-custom-resource-stack"
+    Description: "S3 Custom Resource Stack Name"
+    Type: String
+  ############################################ Step Function ######################################
+  StepFunctionExecutionRoleName:
+    Default: bellflower-step-function-execution-role
+    Description: Step Function Execution Role Name
+    Type: String
+    MinLength: 5
+    MaxLength: 50
+    AllowedPattern: "[a-zA-Z-]*"
+    ConstraintDescription: The length should be between 5 and 50, , must contain only lowercase letters,numbers and hyphen (-).
+  StepFunctionExecutionPolicyName:
+    Default: bellflower-step-function-execution-policy
+    Description: Step Function Execution Policy Name
+    Type: String
+    MinLength: 5
+    MaxLength: 50
+    AllowedPattern: "[a-zA-Z-]*"
+    ConstraintDescription: The length should be between 5 and 50, must contain only lowercase letters,numbers and hyphen (-).
+  StepFunctionName:
+    Default: bellflower-state-machine
+    Description: Step Function Execution Policy Name
+    Type: String
+    MinLength: 5
+    MaxLength: 50
+    AllowedPattern: "[a-zA-Z-]*"
+    ConstraintDescription: The length should be between 5 and 50, must contain only lowecase letters, numbers and hyphen (-).
+
+Resources:
+  ############################################ S3 Bucket ##########################################
+  BellflowerS3Bucket:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-project-repo-us-east-1.s3.amazonaws.com/0038-bellflower/cft/nested-stacks/s3-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        S3BucketBaseName: !Ref S3IntegrationBucketName
+        S3DataBucketFolder: !Ref S3DataBucketFolder
+        S3BucketBlockPublicAcls: !Ref S3BucketBlockPublicAcls
+        S3BucketBlockPublicPolicy: !Ref S3BucketBlockPublicPolicy
+        S3BucketIgnorePublicAcls: !Ref S3BucketIgnorePublicAcls
+        S3BucketRestrictPublicBuckets: !Ref S3BucketRestrictPublicBuckets
+        S3CustomResourceStackName: !Ref S3CustomResourceStackName
+        KmsMasterKeyAlias: !Ref KmsMasterKeyAlias
+      TimeoutInMinutes: 15
+  ##########################################  IAM Roles and Policies #####################################
+  BellflowerIAMRole:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-project-repo-us-east-1.s3.amazonaws.com/0038-bellflower/cft/nested-stacks/iam-role-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        ProcessingLambdaFunctionName: !Ref ProcessingLambdaFunctionName
+        IntegrationLambdaFunctionName: !Ref IntegrationLambdaFunctionName
+        LambdaExecutionRoleName: !Ref LambdaExecutionRoleName
+        LambdaExecutionPolicyName: !Ref LambdaExecutionPolicyName
+        StepFunctionExecutionRoleName: !Ref StepFunctionExecutionRoleName
+        StepFunctionExecutionPolicyName: !Ref StepFunctionExecutionPolicyName
+        SQSQueueBaseName: !Ref SQSQueueBaseName
+        SNSTopicBaseName: !Ref SNSTopicBaseName
+        S3IntegrationBucketName: !Ref S3IntegrationBucketName
+        KmsMasterKeyId: !Ref KmsMasterKeyId
+        StepFunctionName: !Ref StepFunctionName
+      TimeoutInMinutes: 15
+  ################################################ SQS Queue ##############################################
+  BellflowerSQSQueue:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-project-repo-us-east-1.s3.amazonaws.com/0038-bellflower/cft/nested-stacks/sqs-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        SQSQueueBaseName: !Ref SQSQueueBaseName
+        DelaySeconds: !Ref DelaySeconds
+        MaximumMessageSize: !Ref MaximumMessageSize
+        MessageRetentionPeriod: !Ref MessageRetentionPeriod
+        ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+        VisibilityTimeout: !Ref VisibilityTimeout
+        KmsMasterKeyAlias: !Ref KmsMasterKeyAlias
+      TimeoutInMinutes: 15
+
+  ############################### SNS Topic with Subscription #############################################
+  BellflowerReportResultsSNSTopic:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-project-repo-us-east-1.s3.amazonaws.com/0038-bellflower/cft/nested-stacks/sns-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        SNSTopicBaseName: !Ref SNSTopicBaseName
+        SNSTopicDisplayName: !Ref SNSTopicDisplayName
+        SNSSubscriptionEmail: !Ref SNSSubscriptionEmail
+        KmsMasterKeyAlias: !Ref KmsMasterKeyAlias
+      TimeoutInMinutes: 15
+
+  ###################### Processing Lambda Function #########################################################
+  BellflowerProcessingLambdaFunction:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-project-repo-us-east-1.s3.amazonaws.com/0038-bellflower/cft/nested-stacks/lambda-function-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        LambdaExecutionRoleArn: !GetAtt BellflowerIAMRole.Outputs.BellflowerLambdaExecutionRoleArn
+        LambdaHandlerPath: !Join ['.', ['processing_lambda', !Select [1, !Split ['.', !Ref LambdaHandlerPath]]]]
+        LambdaRuntime: !Ref LambdaRuntime
+        LambdaFunctionTimeoutSecs: !Ref LambdaFunctionTimeoutSecs
+        LambdaFunctionMemory: !Ref LambdaFunctionMemory 
+        LambdaFunctionCodeBucket: !Ref LambdaFunctionCodeBucket
+        LambdaFunctionCodeKey: !Ref ProcessingLambdaFunctionCodeKey
+        LambdaFunctionName: !Ref ProcessingLambdaFunctionName
+        LambdaFunctionDescription: !Ref ProcessingLambdaFunctionDescription
+        StepFunctionName: !Ref StepFunctionName
+        S3IntegrationBucketName: !Ref S3IntegrationBucketName
+      TimeoutInMinutes: 15
+
+  ###################### Integration Lambda Function #########################################################
+  BellflowerIntegrationLambdaFunction:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-project-repo-us-east-1.s3.amazonaws.com/0038-bellflower/cft/nested-stacks/lambda-function-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        LambdaExecutionRoleArn: !GetAtt BellflowerIAMRole.Outputs.BellflowerLambdaExecutionRoleArn
+        LambdaHandlerPath: !Join ['.', ['integration_lambda', !Select [1, !Split ['.', !Ref LambdaHandlerPath]]]]
+        LambdaRuntime: !Ref LambdaRuntime
+        LambdaFunctionTimeoutSecs: !Ref LambdaFunctionTimeoutSecs
+        LambdaFunctionMemory: !Ref LambdaFunctionMemory 
+        LambdaFunctionCodeBucket: !Ref LambdaFunctionCodeBucket
+        LambdaFunctionCodeKey: !Ref IntegrationLambdaFunctionCodeKey
+        LambdaFunctionName: !Ref IntegrationLambdaFunctionName
+        LambdaFunctionDescription: !Ref IntegrationLambdaFunctionDescription
+        StepFunctionName: !Ref StepFunctionName
+        S3IntegrationBucketName: !Ref S3IntegrationBucketName
+      TimeoutInMinutes: 15
+  BellflowerLambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt BellflowerIntegrationLambdaFunction.Outputs.LambdaFunctionArn
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:s3:::${S3IntegrationBucketName}-${Environment}-${AWS::Region}'
+      SourceAccount: !Ref AWS::AccountId
+  BellflowerLambdaTrigger:
+    Type: 'Custom::LambdaTrigger'
+    DependsOn: BellflowerLambdaInvokePermission
+    Properties:
+      ServiceToken: 
+        Fn::ImportValue: !Sub '${S3CustomResourceStackName}-S3NoticationCustomResourceLambdaFunctionArn'
+      LambdaArn: !GetAtt BellflowerIntegrationLambdaFunction.Outputs.LambdaFunctionArn
+      Bucket: !Sub '${S3IntegrationBucketName}-${Environment}-${AWS::Region}'
+      NotificationEventName: 'bellflower-s3-event-notification'
+      Prefix: 'inbound'
+      Suffix: '.json'
+  BellflowerIntegrationLambdaSQSEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt BellflowerSQSQueue.Outputs.SQSQueueArn
+      FunctionName: !GetAtt BellflowerIntegrationLambdaFunction.Outputs.LambdaFunctionArn
+
+  ###################### State Machine ##################################################
+  BellflowerStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${StepFunctionName}-${Environment}-${AWS::Region}'
+      DefinitionS3Location:
+        Bucket: subhamay-project-repo-us-east-1
+        Key: 0038-bellflower/state-machine/state-machine.json
+      DefinitionSubstitutions:
+        ProcessingLambda: !GetAtt BellflowerProcessingLambdaFunction.Outputs.LambdaFunctionArn
+        WaitForResponseQueueURL: !GetAtt BellflowerSQSQueue.Outputs.SQSQueueURL
+        ReportResultSNSTopicArn: !GetAtt BellflowerReportResultsSNSTopic.Outputs.SNSTopicArn
+      RoleArn: !GetAtt BellflowerIAMRole.Outputs.BellflowerStepFunctionExecutionRoleArn
+      Tags: 
+        - Key: Name
+          Value: !Ref ProjectName
+        - Key:  Environment
+          Value: !Ref Environment
+Outputs:
+  BellflowerS3BucketArn:
+    Description: Bellflower S3 Bucket Arn
+    Value: !GetAtt BellflowerS3Bucket.Outputs.S3IntegrationBucketArn
+  BellflowerLambdaFunctionExecutionRoleArn:
+    Description: Bellflower Lambda Execution Role Arn
+    Value: !GetAtt BellflowerIAMRole.Outputs.BellflowerLambdaExecutionRoleArn
+  BellflowerStepFunctionExecutionRoleArn:
+    Description: Bellflower Step Function Execution Role Arn.
+    Value: !GetAtt BellflowerIAMRole.Outputs.BellflowerStepFunctionExecutionRoleArn
+  BellflowerSQSQueueArn:
+    Description: SQS Queue Arn
+    Value: !GetAtt BellflowerSQSQueue.Outputs.SQSQueueArn
+  BellflowerSQSQueueURL:
+    Description: SQS Queue URL
+    Value: !GetAtt BellflowerSQSQueue.Outputs.SQSQueueURL
+  BellflowerReportResultsSNSTopicArn:
+    Description: Report Result SNS Topic Arn
+    Value: !GetAtt BellflowerReportResultsSNSTopic.Outputs.SNSTopicArn
+  BellflowerSNSSubscriptionArn:
+    Description: SNS Subscription Arn
+    Value: !GetAtt BellflowerReportResultsSNSTopic.Outputs.SNSSubscriptionArn
+  BellflowerProcessingLambdaFunctionArn:
+    Description: The Processing Lambda Function Arn
+    Value: !GetAtt BellflowerProcessingLambdaFunction.Outputs.LambdaFunctionArn
+  BellflowerIntegrationLambdaFunctionArn:
+    Description: The Integration Lambda Function Arn
+    Value: !GetAtt BellflowerProcessingLambdaFunction.Outputs.LambdaFunctionArn
+  BellflowerStepFunctionArn: 
+    Description: Step Function Arn
+    Value: !Ref BellflowerStateMachine
+

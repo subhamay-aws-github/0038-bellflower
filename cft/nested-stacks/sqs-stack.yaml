@@ -1,0 +1,173 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+   CFN Template To Create A SQS Queue.
+
+Metadata:
+  TemplateName: sqs-stack.yaml
+  TemplateType: SQS Queue
+  Version: 1.0.0
+  Owner: Subhamay Bhattacharyya
+  ProjectName: Nested Stack Standardization
+  Modification History:
+    - 1.0.0  - December 10, 2022   -- Initial Version 
+  Resources: 
+    - SQS Standard Queue
+  StepsToTest: |
+    Manualy verify the Stack.
+  StepsToCleanup: |
+    Stack delete command
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    ########################################### Project Name and Environment #######################
+    - Label: 
+        default: "Project And Environment:"
+      Parameters: 
+        - ProjectName
+        - Environment
+    ########################################## KMS Key #############################################
+    - Label: 
+        default: "KMS Configuration:"
+      Parameters: 
+      - KmsMasterKeyAlias
+    ########################################### SQS Queue ##########################################
+    - Label: 
+        default: "SQS Configuration"
+      Parameters: 
+        - SQSQueueBaseName
+        - DelaySeconds
+        - MaximumMessageSize
+        - MessageRetentionPeriod
+        - ReceiveMessageWaitTimeSeconds
+        - VisibilityTimeout
+    ParameterLabels:
+      ########################################### Project Name and Environment #######################
+      ProjectName:
+        default: "The Project Name."
+      Environment:
+        default: "Environment Name."
+      ############################################ KMS ###############################################
+      KmsMasterKeyAlias: 
+        default: "The KMS Master Key Alias To Be Used For Server Side Encryption."
+      ############################################ SNS ###############################################
+      SQSQueueBaseName:
+        default: "The SQS Queue Name."
+      DelaySeconds:
+        default: "Delay Seconds."
+      MaximumMessageSize:
+        default: "Maximum Message Size."
+      MessageRetentionPeriod: 
+        default: "Message Retention Period."
+      ReceiveMessageWaitTimeSeconds: 
+        default: "Received Message Wait Time Seconds."
+      VisibilityTimeout:
+        default: "Visibility Timeout."
+Parameters:
+  ############################################ Project Name and Environment #####################
+  ProjectName:
+    Default: project
+    Description: "The Project Name."
+    Type: String
+    MinLength: 5
+    MaxLength: 30
+    AllowedPattern: "[a-z]*"
+    ConstraintDescription: "The length should be between 5 and 30, must contain only lowercase alphabets."
+  Environment:
+    Default: devl
+    Description: "The Environment Name."
+    Type: String
+    AllowedValues: ["devl", "test", "prod"]
+    ConstraintDescription: "The Environment must be devl / test or prod"
+  ############################################ KMS ###############################################
+  KmsMasterKeyAlias:
+    Default: "SB-KMS"
+    Description: "The KMS Master Key Alias To Be Used For Server Side Encryption."
+    Type: String
+    MinLength: 5
+    MaxLength: 20
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: "The length of the KMS Key Alias should be beteen 5 and 20 and can only contain lowercase alphanumeric characters and dash."
+  ############################################ SQS ###############################################
+  SQSQueueBaseName:
+    Default: "sqs-queue-name"
+    Description: "The Base Name Of The SQS Queue."
+    Type: String
+    MinLength: 10
+    MaxLength: 40
+    AllowedPattern: "[a-z][a-z0-9-]*"
+    ConstraintDescription: "The length of SQS Queue base name should be between 10 and 40, must contain only lowercase letter, number, dash, dot and should start with a letter."
+  DelaySeconds:
+    Type: Number
+    Description: "Delay Seconds."
+    Default: 0
+    MinValue: 0
+    MaxValue: 900
+  MaximumMessageSize:
+    Type: Number
+    Description: "Maximum Message Size."
+    Default: 262144
+    MinValue: 1024
+    MaxValue: 262144
+  MessageRetentionPeriod:
+    Type: Number
+    Description: "Message Retention Period."
+    Default: 345600
+    MinValue: 60
+    MaxValue: 1209600
+  ReceiveMessageWaitTimeSeconds:
+    Type: Number
+    Description: "Received Message Wait Time Seconds."
+    Default: 0
+    MinValue: 0
+    MaxValue: 20
+  VisibilityTimeout:
+    Type: Number
+    Description: "Visibility Timeout."
+    Default: 30
+    MinValue: 1
+    MaxValue: 43200
+Resources:
+  ############################################ SQS  Queue ###############################################
+  SQSQueue:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Type: AWS::SQS::Queue
+    Properties: 
+      DelaySeconds: !Ref DelaySeconds
+      MaximumMessageSize: !Ref MaximumMessageSize
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      QueueName: !Sub '${SQSQueueBaseName}-${Environment}-${AWS::Region}'
+      ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+      KmsMasterKeyId: !Sub 'alias/${KmsMasterKeyAlias}'
+      Tags: 
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key:  Environment
+          Value: !Ref Environment
+      VisibilityTimeout: !Ref VisibilityTimeout
+  SQSPolicy: 
+    Type: AWS::SQS::QueuePolicy
+    Properties: 
+      Queues: 
+       - !Ref SQSQueue
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Id: AllowIncomingAccess
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt SQSQueue.Arn
+Outputs:
+  SQSQueueURL:
+    Description: The URL of the SQS Queue.
+    Value: !Ref SQSQueue
+  SQSQueueArn:
+    Description: The Arn of the SQS Queue.
+    Value: !GetAtt SQSQueue.Arn

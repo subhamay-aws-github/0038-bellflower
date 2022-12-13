@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+   Project Bellflower : CFN Template to create am IAM Role for Lambda Function and State Machine
+
+Metadata:
+  TemplateName: lambda-function-stack.yaml
+  TemplateType: IAM Role
+  Version: 1.0.0
+  Owner: Subhamay Bhattacharyya
+  ProjectName: Nested Stack Standardization
+  Modification History:
+    - 1.0.0  - December 10, 2022   -- Initial Version 
+  Resources: 
+    -IAM Role
+  StepsToTest: |
+    Manualy verify the Stack.
+  StepsToCleanup: |
+    Stack delete command
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    ########################################### Project Name and Environment #######################
+    - Label: 
+        default: "Project And Environment:"
+      Parameters: 
+        - ProjectName
+        - Environment
+    ########################################## KMS Key ############################################
+    - Label: 
+        default: "KMS Configuration:"
+      Parameters: 
+      - KmsMasterKeyId
+    ##################################### Services Referred in the IAM Role #######################
+    - Label:
+        default: "Service Names"
+      Parameters:
+      - ProcessingLambdaFunctionName
+      - IntegrationLambdaFunctionName
+      - LambdaExecutionRoleName
+      - LambdaExecutionPolicyName
+      - StepFunctionExecutionRoleName
+      - StepFunctionExecutionPolicyName
+      - SQSQueueBaseName
+      - SNSTopicBaseName
+      - S3IntegrationBucketName
+    ParameterLabels:
+      ########################################### Project Name and Environment #######################
+      ProjectName:
+        default: "Project Name."
+      Environment:
+        default: "Environment Name."
+      ##################################### Services Referred in the IAM Role #######################
+      ProcessingLambdaFunctionName: 
+        default: "Processing Lammba Function Name."
+      IntegrationLambdaFunctionName: 
+        default: "Processing Lammba Function Name."
+      LambdaExecutionRoleName: 
+        default: "Lambda Function Execution Role Name."
+      LambdaExecutionPolicyName:
+        default: "Lambda Function Execution Policy Name."
+      StepFunctionExecutionRoleName: 
+        default: "Step Function Execution Role Name."
+      StepFunctionExecutionPolicyName: 
+        default: "Step Function Execution Policy Name."
+      SQSQueueBaseName:  
+        default: "The Base Name Of The SQS Queue."
+      SNSTopicBaseName: 
+        default: "The Name Of The SNS Topic to publish success / failure message."
+      S3IntegrationBucketName: 
+        default: "The Name Of The S3 Integration Bucket."
+      StepFunctionName: 
+        default: "The Name Of The Step Function"
+Parameters:
+  ################## Project Name and Environment ###############################################
+  ProjectName:
+    Default: project
+    Description: "The Project Name."
+    Type: String
+    MinLength: 5
+    MaxLength: 30
+    AllowedPattern: "[a-z]*"
+    ConstraintDescription: "The length should be between 5 and 30, must contain only lowercase alphabets."
+  Environment:
+    Default: devl
+    Description: "The Environment Name."
+    Type: String
+    AllowedValues: ["devl", "test", "prod"]
+    ConstraintDescription: "The Environment must be devl / test or prod"
+  ############################################ KMS ###############################################
+  KmsMasterKeyId:
+    Default: "e4c733c5-9fbe-4a90-bda1-6f0362bc9b89"
+    Description: "The KMS Key Id Used For Encryption."
+    Type: String
+    MinLength: 36
+    MaxLength: 36
+    AllowedPattern: "[a-z0-9-]*"
+    ConstraintDescription: "The length of the KMS Key Id should be 36 and must be lowercase alphabets, numbers and dash."
+  ########################################### Lambda Function #####################################
+  ProcessingLambdaFunctionName:
+    Default: some-lambda-function-name
+    Description: Processing Lambda Function Name
+    Type: String
+    MinLength: 20
+    MaxLength: 60
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: The length should be between 20 and 60, must contain only alphanumeric or dash.
+  IntegrationLambdaFunctionName:
+    Default: some-other-lambda-function-name
+    Description: Integration Lambda Function Name
+    Type: String
+    MinLength: 20
+    MaxLength: 60
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: The length should be between 20 and 60, must contain only alphanumeric or dash.
+  LambdaExecutionRoleName:
+    Default: Lambda-Function-Role-Name
+    Description: Lambda Function Execution Role Name
+    Type: String
+    MinLength: 20
+    MaxLength: 60
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: The length should be between 20 and 60, must contain only alphanumeric or dash.
+  LambdaExecutionPolicyName:
+    Default: Lambda-Function-Policy-Name
+    Description: Lambda Function Execution Policy Name
+    Type: String
+    MinLength: 20
+    MaxLength: 60
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: The length should be between 20 and 60, must contain only alphanumeric or dash.
+  StepFunctionExecutionRoleName:
+    Default: Step-Function-Role-Name
+    Description: Step Function Execution Role Name
+    Type: String
+    MinLength: 20
+    MaxLength: 60
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: The length should be between 20 and 60, must contain only alphanumeric or dash.
+  StepFunctionExecutionPolicyName:
+    Default: Step-Function-Policy-Name
+    Description: Step Function Execution Policy Name
+    Type: String
+    MinLength: 20
+    MaxLength: 60
+    AllowedPattern: "[a-zA-Z0-9-]*"
+    ConstraintDescription: The length should be between 20 and 60, must contain only alphanumeric or dash.
+  SQSQueueBaseName:
+    Default: some-sqs-queue-name
+    Type: String
+    Description: "SQS Queue Name."
+    MinLength: 10
+    MaxLength: 40
+    AllowedPattern: "[a-zA-Z0-9/-]*"
+    ConstraintDescription: The length should be between 10 and 40, must contain only alphanumeric character.
+  SNSTopicBaseName: 
+    Default: some-sns-topic-name
+    Type: String
+    Description: "SQS Queue Name."
+    MinLength: 10
+    MaxLength: 40
+    AllowedPattern: "[a-zA-Z0-9/-]*"
+    ConstraintDescription: The length should be between 10 and 40, must contain only alphanumeric character.
+  S3IntegrationBucketName: 
+    Default: some-s3-bucket-name
+    Description: "The S3 Bucket Base Name for the source data, the instance and region will be added as suffix by the template."
+    Type: String
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: "[a-z][a-z0-9-.]*"
+    ConstraintDescription: The length should be between 3 and 63, must contain only lowercase letter,numbers,dash, dot and should start with a letter.
+  KmsMasterKeyArn: 
+    Default: key/e4c733c5-9fbe-4a90-bda1-6f0362bc9b89
+    Type: String
+    Description: "KMS Key Arn used to encrypt SQS message."
+    MinLength: 30
+    MaxLength: 50
+    AllowedPattern: "[key//][a-z0-9/-]*"
+    ConstraintDescription: The length of the Kms Arn should be between 30 and 50 characters and must be a valid Kms Key Arn
+  StepFunctionName:
+    Default: step-function-name
+    Description: Step Function Execution Policy Name
+    Type: String
+    MinLength: 5
+    MaxLength: 50
+    AllowedPattern: "[a-zA-Z-]*"
+    ConstraintDescription: The length should be between 5 and 50, must contain only lowecase letters, numbers and hyphen (-).
+Resources:
+
+  #################################### Lambda Execution Role ##########################
+  BellflowerLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref LambdaExecutionRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+        - PolicyName: !Ref LambdaExecutionPolicyName
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: AllowCloudWatchLogStream
+              Effect: Allow
+              Action: 
+                - 'logs:CreateLogGroup'
+                - 'logs:CreateLogStream'
+                - 'logs:PutLogEvents'
+              Resource: 
+                - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${ProcessingLambdaFunctionName}-${Environment}-${AWS::Region}:*'
+                - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${IntegrationLambdaFunctionName}-${Environment}-${AWS::Region}:*'
+            - Sid: AllowReceiveAndDeleteMessageFromSQS
+              Effect: Allow
+              Action: 
+                - 'sqs:ReceiveMessage'
+                - 'sqs:DeleteMessage'
+                - 'sqs:GetQueueAttributes'
+              Resource: !Sub 'arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${SQSQueueBaseName}-${Environment}-${AWS::Region}'
+            - Sid: AllowKMSDecrypt
+              Effect: Allow
+              Action: 
+                - kms:Decrypt
+                - kms:GenerateDataKey
+                - kms:GenerateDataKeyPair
+              Resource: !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:${KmsMasterKeyArn}'
+            - Sid: AllowWriteToS3OutboundFolder
+              Effect: Allow
+              Action: 
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${S3IntegrationBucketName}-${Environment}-${AWS::Region}/outbound/*'
+            - Sid: AllowReadFromS3InboundFolder
+              Effect: Allow
+              Action: 
+                - s3:ReadObject
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${S3IntegrationBucketName}-${Environment}-${AWS::Region}/inbound/*'
+            - Sid: AllowSendTaskStatus
+              Effect: Allow
+              Action: 
+                - states:SendTaskSuccess
+              Resource: !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StepFunctionName}-${Environment}-${AWS::Region}'
+      Tags: 
+        - Key: ProjectName
+          Value: !Ref ProjectName
+
+  ################################ State Machine Execution Role #################################
+  BellflowerStepFunctionExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref StepFunctionExecutionRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - states.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns: 
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaRole"
+      Policies:
+        - PolicyName: !Ref StepFunctionExecutionPolicyName
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: AllowSendMessageToSQS
+              Effect: Allow
+              Action: 
+                - 'sqs:SendMessage'
+              Resource: !Sub 'arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${SQSQueueBaseName}-${Environment}-${AWS::Region}'
+            - Sid: AllowKMSDecrypt
+              Effect: Allow
+              Action: 
+                - kms:Decrypt
+                - kms:GenerateDataKey
+                - kms:GenerateDataKeyPair
+              Resource: !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsMasterKeyId}'
+            - Sid: AllowPublishToSNSTpoic
+              Effect: Allow
+              Action: 
+              - 'sns:Publish'
+              Resource: !Sub 'arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${SNSTopicBaseName}-${Environment}-${AWS::Region}'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+Outputs:
+  BellflowerLambdaExecutionRoleArn:
+    Description: The Arn of the Lambda Execution Role
+    Value: !GetAtt BellflowerLambdaExecutionRole.Arn
+  BellflowerStepFunctionExecutionRoleArn:
+    Description: The Arn of the Step Function Execution Role
+    Value: !GetAtt BellflowerStepFunctionExecutionRole.Arn
